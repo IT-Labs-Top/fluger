@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fluger Player</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  #video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  #overlay {
+    position: absolute;
+    top: 42.5%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70%;
+    padding: 0;
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 36px;
+    font-weight: normal;
+    line-height: 1.4;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    white-space: pre-line;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<video id="video" playsinline></video>
+<div id="overlay"></div>
+
+<script src="/player/config.js"></script>
+<script>
+(function () {
+  const video = document.getElementById("video");
+  const overlay = document.getElementById("overlay");
+  const cfg = window.PLAYER_CONFIG || {};
+  const textCfg = cfg.text || {};
+  const animCfg = cfg.animation || {};
+
+  // Apply default styles from config
+  if (textCfg.fontFamily)  overlay.style.fontFamily  = textCfg.fontFamily;
+  if (textCfg.fontSize)    overlay.style.fontSize    = textCfg.fontSize;
+  if (textCfg.fontWeight)  overlay.style.fontWeight   = textCfg.fontWeight;
+  if (textCfg.color)       overlay.style.color        = textCfg.color;
+  if (textCfg.lineHeight)  overlay.style.lineHeight   = String(textCfg.lineHeight);
+  if (textCfg.textAlign)   overlay.style.textAlign    = textCfg.textAlign;
+  if (textCfg.top)         overlay.style.top          = textCfg.top;
+  if (textCfg.left)        overlay.style.left         = textCfg.left;
+  if (textCfg.width)       overlay.style.width        = textCfg.width;
+  if (textCfg.padding)     overlay.style.padding      = textCfg.padding;
+
+  let fadeOutTimer = null;
+  let appearTimer = null;
+
+  function clearTimers() {
+    if (fadeOutTimer) { clearTimeout(fadeOutTimer); fadeOutTimer = null; }
+    if (appearTimer)  { clearTimeout(appearTimer);  appearTimer = null; }
+  }
+
+  function hideOverlay() {
+    overlay.style.animation = "";
+    overlay.style.opacity = "0";
+    overlay.textContent = "";
+    clearTimers();
+  }
+
+  function showText(text, perRequestCfg) {
+    hideOverlay();
+
+    if (!text) return;
+
+    // Merge per-request config over defaults
+    const anim = { ...animCfg, ...(perRequestCfg || {}) };
+    const fadeIn  = anim.fadeInDuration  || 1.5;
+    const fadeOut = anim.fadeOutDuration || 1.5;
+    const delay   = anim.appearDelay    || 1.5;
+    const beforeEnd = anim.disappearBeforeEnd || 2;
+
+    // Apply per-request text styles
+    if (perRequestCfg) {
+      if (perRequestCfg.fontFamily)  overlay.style.fontFamily  = perRequestCfg.fontFamily;
+      if (perRequestCfg.fontSize)    overlay.style.fontSize    = perRequestCfg.fontSize;
+      if (perRequestCfg.fontWeight)  overlay.style.fontWeight   = perRequestCfg.fontWeight;
+      if (perRequestCfg.color)       overlay.style.color        = perRequestCfg.color;
+      if (perRequestCfg.lineHeight)  overlay.style.lineHeight   = String(perRequestCfg.lineHeight);
+      if (perRequestCfg.textAlign)   overlay.style.textAlign    = perRequestCfg.textAlign;
+      if (perRequestCfg.top)         overlay.style.top          = perRequestCfg.top;
+      if (perRequestCfg.left)        overlay.style.left         = perRequestCfg.left;
+      if (perRequestCfg.width)       overlay.style.width        = perRequestCfg.width;
+      if (perRequestCfg.padding)     overlay.style.padding      = perRequestCfg.padding;
+    }
+
+    overlay.textContent = text;
+
+    // Fade-in after delay
+    appearTimer = setTimeout(function () {
+      overlay.style.animation = "fadeIn " + fadeIn + "s ease forwards";
+    }, delay * 1000);
+
+    // Schedule fade-out based on video duration
+    function scheduleFadeOut() {
+      const duration = video.duration;
+      if (!isFinite(duration) || duration <= 0) return;
+
+      const fadeOutStart = (duration - beforeEnd - fadeOut) * 1000;
+      if (fadeOutStart > 0) {
+        fadeOutTimer = setTimeout(function () {
+          overlay.style.animation = "fadeOut " + fadeOut + "s ease forwards";
+        }, fadeOutStart);
+      }
+    }
+
+    // Try immediately or wait for metadata
+    if (isFinite(video.duration) && video.duration > 0) {
+      scheduleFadeOut();
+    } else {
+      video.addEventListener("loadedmetadata", scheduleFadeOut, { once: true });
+    }
+  }
+
+  function sendEvent(obj) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(obj));
+    }
+  }
+
+  function playVideo(filename, loop) {
+    video.src = "/videos/" + filename;
+    video.loop = !!loop;
+    video.play().catch(function (e) {
+      console.error("Playback failed:", e);
+      sendEvent({ event: "error", message: String(e) });
+    });
+  }
+
+  function stopVideo() {
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    hideOverlay();
+  }
+
+  video.addEventListener("ended", function () {
+    hideOverlay();
+    sendEvent({ event: "ended" });
+  });
+
+  video.addEventListener("error", function () {
+    var msg = video.error ? video.error.message : "unknown error";
+    hideOverlay();
+    sendEvent({ event: "error", message: msg });
+  });
+
+  // --- WebSocket ---
+  var ws = null;
+  var reconnectDelay = 1000;
+
+  function connect() {
+    var proto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(proto + "//" + location.host + "/ws/player");
+
+    ws.onopen = function () {
+      console.log("WebSocket connected");
+      reconnectDelay = 1000;
+    };
+
+    ws.onmessage = function (evt) {
+      var msg;
+      try { msg = JSON.parse(evt.data); } catch (e) { return; }
+
+      if (msg.action === "play") {
+        playVideo(msg.video, msg.loop);
+        showText(msg.text, msg.text_config);
+      } else if (msg.action === "stop") {
+        stopVideo();
+      }
+    };
+
+    ws.onclose = function () {
+      console.log("WebSocket closed, reconnecting in " + reconnectDelay + "ms");
+      setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+    };
+
+    ws.onerror = function () {
+      ws.close();
+    };
+  }
+
+  connect();
+})();
+</script>
+</body>
+</html>
