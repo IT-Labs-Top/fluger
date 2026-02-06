@@ -155,6 +155,15 @@ def _find_chrome() -> Optional[str]:
                 if p.is_file():
                     return str(p)
         return None
+    # macOS: check known .app bundle paths
+    if sys.platform == "darwin":
+        for app in (
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ):
+            if Path(app).is_file():
+                return app
+    # Linux (Raspberry Pi) and macOS fallback: check PATH
     for name in ("chromium-browser", "chromium", "google-chrome", "google-chrome-stable"):
         path = shutil.which(name)
         if path:

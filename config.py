@@ -19,16 +19,16 @@ FACTOR = 50       # gear ratio
 # ── Speed profile — short distance (<=30 steps) ────
 SHORT_START_DELAY = 0.00002
 SHORT_MAX_SPEED_DELAY = 0.000020
-SHORT_FIN_DELAY = 0.0010
+SHORT_FIN_DELAY = 0.0003           # was 0.0010 — reduced for faster deceleration
 
 # ── Speed profile — long distance (>30 steps) ──────
-LONG_START_DELAY = 0.000014
-LONG_MAX_SPEED_DELAY = 0.000015
-LONG_FIN_DELAY = 0.00003
+LONG_START_DELAY = 0.000010        # was 0.000014
+LONG_MAX_SPEED_DELAY = 0.000010    # was 0.000015
+LONG_FIN_DELAY = 0.000020          # was 0.00003
 
 # ── Motion profile ─────────────────────────────────
-ACCEL_PHASE = 0.2           # fraction of path for acceleration
-DECEL_PHASE = 0.2           # fraction of path for deceleration
+ACCEL_PHASE = 0.15          # fraction of path for acceleration (was 0.2)
+DECEL_PHASE = 0.15          # fraction of path for deceleration (was 0.2)
 SMALL_DIST_THRESHOLD = 30   # steps; boundary between short/long profile
 
 # ── Calibration ─────────────────────────────────────

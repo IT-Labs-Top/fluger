@@ -100,7 +100,7 @@ class Stepper:
             self._return_to_zero()
         else:
             gpio.output(self.dir_pin, direction)
-            time.sleep(0.1)
+            time.sleep(0.05)
             self._move(motor_steps, diff)
 
         self._current_step = target_step
