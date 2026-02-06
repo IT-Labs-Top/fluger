@@ -172,15 +172,23 @@ def _launch_browser():
         log.warning("Chrome/Chromium not found — player browser not launched")
         return
 
+    # Use separate user-data-dir to avoid reusing existing Chrome instance
+    # (otherwise Chrome just passes URL to existing process and exits immediately)
+    user_data_dir = BASE_DIR / getattr(cfg, "BROWSER_USER_DATA_DIR", "chrome_profile")
+    user_data_dir.mkdir(exist_ok=True)
+
     url = f"http://127.0.0.1:{cfg.SERVER_PORT}/player/"
     args = [
         chrome,
+        f"--user-data-dir={user_data_dir}",
         f"--app={url}",
         "--autoplay-policy=no-user-gesture-required",
         "--disable-infobars",
         "--no-first-run",
         "--disable-session-crashed-bubble",
         "--disable-features=TranslateUI",
+        "--disable-translate",
+        "--lang=en-US",
         "--noerrdialogs",
     ]
 
@@ -192,7 +200,7 @@ def _launch_browser():
         args.append("--kiosk")
 
     _browser_proc = subprocess.Popen(args)
-    log.info("Browser launched: PID %d", _browser_proc.pid)
+    log.info("Browser launched: PID %d, profile: %s", _browser_proc.pid, user_data_dir)
 
 
 def _kill_browser():
@@ -223,8 +231,12 @@ async def _browser_watchdog():
     interval = getattr(cfg, "BROWSER_WATCHDOG_INTERVAL", 10)
     while True:
         await asyncio.sleep(interval)
+        # If player is connected via WebSocket, browser is working regardless of process state
+        if player_manager.has_connections:
+            continue
+        # No WebSocket connection and process is dead — relaunch
         if not _is_browser_alive():
-            log.warning("Browser process died — relaunching")
+            log.warning("Browser process died and player not connected — relaunching")
             try:
                 _launch_browser()
             except Exception:

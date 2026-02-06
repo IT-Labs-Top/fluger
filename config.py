@@ -49,6 +49,7 @@ BROWSER_Y = 0                 # window Y position (px)
 BROWSER_WIDTH = 1536          # window width (px), 0 = kiosk/fullscreen
 BROWSER_HEIGHT = 256          # window height (px), 0 = kiosk/fullscreen
 BROWSER_WATCHDOG_INTERVAL = 10  # seconds between browser liveness checks
+BROWSER_USER_DATA_DIR = "chrome_profile"  # separate Chrome profile to avoid reusing existing instance
 
 # ── Logging ──────────────────────────────────────────
 LOG_DIR = "logs"
