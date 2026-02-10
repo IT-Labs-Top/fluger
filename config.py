@@ -14,7 +14,7 @@ CW = 0            # clockwise direction value
 CCW = 1           # counter-clockwise direction value
 DEGSTEP = 1.8     # degrees per one full step
 MICROSTEP = 8     # driver microstep multiplier
-FACTOR = 50       # gear ratio
+FACTOR = 128      # gear ratio
 
 # ── Speed profile — short distance (<=30 steps) ────
 SHORT_START_DELAY = 0.00002
