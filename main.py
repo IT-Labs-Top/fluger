@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import logging.handlers
+import re
 import shutil
 import subprocess
 import sys
@@ -347,6 +348,14 @@ class PlayRequest(BaseModel):
     text_config: Optional[dict] = None
 
 
+class VideoConfigRequest(BaseModel):
+    offsetX: float = 0
+    offsetY: float = 0
+    scale: float = 1
+    moveStep: float = 1
+    scaleStep: float = 0.01
+
+
 # ── Stepper endpoints ─────────────────────────────────
 
 @app.post("/api/rotate")
@@ -488,6 +497,31 @@ def player_status():
         **_player_state,
         "connected": player_manager.has_connections,
     }
+
+
+@app.post("/api/player/video-config")
+async def save_video_config(body: VideoConfigRequest):
+    config_path = PLAYER_DIR / "config.js"
+    if not config_path.is_file():
+        raise HTTPException(404, "config.js not found")
+
+    content = config_path.read_text(encoding="utf-8")
+
+    new_video = (
+        "video: {\n"
+        f"    offsetX: {body.offsetX},\n"
+        f"    offsetY: {body.offsetY},\n"
+        f"    scale: {body.scale},\n"
+        f"    moveStep: {body.moveStep},\n"
+        f"    scaleStep: {body.scaleStep},\n"
+        "  }"
+    )
+
+    updated = re.sub(r"video:\s*\{[^}]*\}", new_video, content)
+    config_path.write_text(updated, encoding="utf-8")
+    log.info("Video config saved: offsetX=%s offsetY=%s scale=%s",
+             body.offsetX, body.offsetY, body.scale)
+    return {"status": "ok", "video": body.model_dump()}
 
 
 # ── WebSocket: player ────────────────────────────────

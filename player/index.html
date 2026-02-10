@@ -241,7 +241,37 @@
   // Apply initial transform from config
   updateVideoTransform();
 
+  function saveVideoConfig() {
+    var data = {
+      offsetX: vidX,
+      offsetY: vidY,
+      scale: parseFloat(vidScale.toFixed(4)),
+      moveStep: moveStep,
+      scaleStep: scaleStep
+    };
+    fetch("/api/player/video-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    }).then(function (r) {
+      if (r.ok) {
+        console.log("[SAVED] Video config saved to config.js");
+      } else {
+        console.error("[SAVE ERROR] " + r.status + " " + r.statusText);
+      }
+    }).catch(function (err) {
+      console.error("[SAVE ERROR] " + err);
+    });
+  }
+
   document.addEventListener("keydown", function (e) {
+    // Ctrl+S — save config
+    if (e.ctrlKey && e.key === "s") {
+      e.preventDefault();
+      saveVideoConfig();
+      return;
+    }
+
     var handled = false;
     if (e.ctrlKey) {
       if (e.key === "ArrowUp")   { vidScale += scaleStep; handled = true; }
