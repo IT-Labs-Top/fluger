@@ -15,11 +15,16 @@
     height: 100vh;
   }
 
+  #video-container {
+    position: relative;
+    width: 100%;
+    transform-origin: 0 0;
+  }
+
   #video {
     display: block;
     width: 100%;
     height: auto;
-    transform-origin: 0 0;
   }
 
   #overlay {
@@ -40,6 +45,22 @@
     white-space: pre-line;
   }
 
+  #coords {
+    display: none;
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #0f0;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 9999;
+    white-space: pre;
+  }
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
@@ -53,14 +74,19 @@
 </head>
 <body>
 
-<video id="video" playsinline></video>
-<div id="overlay"></div>
+<div id="video-container">
+  <video id="video" playsinline></video>
+  <div id="overlay"></div>
+</div>
+<div id="coords"></div>
 
 <script src="/player/config.js"></script>
 <script>
 (function () {
+  const videoContainer = document.getElementById("video-container");
   const video = document.getElementById("video");
   const overlay = document.getElementById("overlay");
+  const coordsEl = document.getElementById("coords");
   const cfg = window.PLAYER_CONFIG || {};
   const textCfg = cfg.text || {};
   const animCfg = cfg.animation || {};
@@ -224,17 +250,11 @@
   var scaleStep = videoCfg.scaleStep || 0.01;
 
   function updateVideoTransform() {
-    video.style.transform = "translate(" + vidX + "px, " + vidY + "px) scale(" + vidScale + ")";
+    videoContainer.style.transform = "translate(" + vidX + "px, " + vidY + "px) scale(" + vidScale + ")";
     console.log(
       "[VIDEO_POSITION] offsetX: " + vidX +
       ", offsetY: " + vidY +
       ", scale: " + vidScale.toFixed(4)
-    );
-    console.log(
-      "Config for copy:\n" +
-      "  video: { offsetX: " + vidX +
-      ", offsetY: " + vidY +
-      ", scale: " + vidScale.toFixed(4) + " }"
     );
   }
 
@@ -264,11 +284,25 @@
     });
   }
 
+  function updateCoordsDisplay() {
+    coordsEl.textContent =
+      "offsetX: " + vidX + "\n" +
+      "offsetY: " + vidY + "\n" +
+      "scale:   " + vidScale.toFixed(4);
+  }
+
   document.addEventListener("keydown", function (e) {
     // Ctrl+S — save config
     if (e.ctrlKey && e.key === "s") {
       e.preventDefault();
       saveVideoConfig();
+      return;
+    }
+
+    // C — show coords while held
+    if (e.key === "c" || e.key === "C") {
+      updateCoordsDisplay();
+      coordsEl.style.display = "block";
       return;
     }
 
@@ -285,6 +319,12 @@
     if (handled) {
       e.preventDefault();
       updateVideoTransform();
+    }
+  });
+
+  document.addEventListener("keyup", function (e) {
+    if (e.key === "c" || e.key === "C") {
+      coordsEl.style.display = "none";
     }
   });
 
