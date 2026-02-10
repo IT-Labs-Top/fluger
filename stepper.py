@@ -126,17 +126,39 @@ class Stepper:
         gpio.output(self.dir_pin, self.cw)
 
         try:
+            # First attempt: accelerate then search
             for i in range(int(steps * cfg.ACCEL_PHASE)):
                 self._pulse(self.start_delay_sd + accel * i)
 
             for _ in range(steps):
                 self._pulse(self.max_speed_sd)
                 if gpio.input(self.hall_pin) == 0:
+                    gpio.output(self.step_pin, gpio.LOW)
                     self._current_step = 0
                     gpio.output(self.ena_pin, gpio.HIGH)
+                    time.sleep(2)
+                    gpio.output(self.ena_pin, gpio.HIGH)
                     return {"status": "ok", "position": 0}
+            else:
+                # Second attempt if first pass didn't find the sensor
+                log.warning("Hall sensor not found on first pass, retrying...")
+                time.sleep(5)
+                gpio.output(self.dir_pin, self.cw)
 
-            return {"status": "error", "message": "Hall sensor not found"}
+                for i in range(int(steps * cfg.ACCEL_PHASE)):
+                    self._pulse(self.start_delay_sd + accel * i)
+
+                for _ in range(steps):
+                    self._pulse(self.max_speed_sd)
+                    if gpio.input(self.hall_pin) == 0:
+                        gpio.output(self.step_pin, gpio.LOW)
+                        self._current_step = 0
+                        gpio.output(self.ena_pin, gpio.HIGH)
+                        time.sleep(2)
+                        gpio.output(self.ena_pin, gpio.HIGH)
+                        return {"status": "ok", "position": 0}
+
+                return {"status": "error", "message": "Hall sensor not found"}
         finally:
             gpio.output(self.ena_pin, gpio.LOW)
             gpio.output(self.step_pin, gpio.LOW)
