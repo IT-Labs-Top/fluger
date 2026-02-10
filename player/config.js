@@ -17,4 +17,11 @@ window.PLAYER_CONFIG = {
     appearDelay: 1.5,
     disappearBeforeEnd: 2,
   },
+  video: {
+    offsetX: 0,
+    offsetY: 0,
+    scale: 1,
+    moveStep: 1,
+    scaleStep: 0.01,
+  },
 };

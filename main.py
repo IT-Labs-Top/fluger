@@ -201,12 +201,7 @@ def _launch_browser():
         "--noerrdialogs",
     ]
 
-    w, h = cfg.BROWSER_WIDTH, cfg.BROWSER_HEIGHT
-    if w > 0 and h > 0:
-        args.append(f"--window-size={w},{h}")
-        args.append(f"--window-position={cfg.BROWSER_X},{cfg.BROWSER_Y}")
-    else:
-        args.append("--kiosk")
+    args.append("--kiosk")
 
     _browser_proc = subprocess.Popen(args)
     log.info("Browser launched: PID %d, profile: %s", _browser_proc.pid, user_data_dir)

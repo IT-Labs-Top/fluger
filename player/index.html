@@ -19,6 +19,7 @@
     display: block;
     width: 100%;
     height: auto;
+    transform-origin: 0 0;
   }
 
   #overlay {
@@ -213,6 +214,49 @@
       ws.close();
     };
   }
+
+  // --- Video position/scale adjustment ---
+  var videoCfg = cfg.video || {};
+  var vidX = videoCfg.offsetX || 0;
+  var vidY = videoCfg.offsetY || 0;
+  var vidScale = videoCfg.scale || 1;
+  var moveStep = videoCfg.moveStep || 1;
+  var scaleStep = videoCfg.scaleStep || 0.01;
+
+  function updateVideoTransform() {
+    video.style.transform = "translate(" + vidX + "px, " + vidY + "px) scale(" + vidScale + ")";
+    console.log(
+      "[VIDEO_POSITION] offsetX: " + vidX +
+      ", offsetY: " + vidY +
+      ", scale: " + vidScale.toFixed(4)
+    );
+    console.log(
+      "Config for copy:\n" +
+      "  video: { offsetX: " + vidX +
+      ", offsetY: " + vidY +
+      ", scale: " + vidScale.toFixed(4) + " }"
+    );
+  }
+
+  // Apply initial transform from config
+  updateVideoTransform();
+
+  document.addEventListener("keydown", function (e) {
+    var handled = false;
+    if (e.ctrlKey) {
+      if (e.key === "ArrowUp")   { vidScale += scaleStep; handled = true; }
+      if (e.key === "ArrowDown") { vidScale = Math.max(0.1, vidScale - scaleStep); handled = true; }
+    } else {
+      if (e.key === "ArrowLeft")  { vidX -= moveStep; handled = true; }
+      if (e.key === "ArrowRight") { vidX += moveStep; handled = true; }
+      if (e.key === "ArrowUp")    { vidY -= moveStep; handled = true; }
+      if (e.key === "ArrowDown")  { vidY += moveStep; handled = true; }
+    }
+    if (handled) {
+      e.preventDefault();
+      updateVideoTransform();
+    }
+  });
 
   connect();
 })();
