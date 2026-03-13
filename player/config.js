@@ -18,10 +18,10 @@ window.PLAYER_CONFIG = {
     disappearBeforeEnd: 2,
   },
   video: {
-    offsetX: 0,
-    offsetY: 0,
-    scale: 1,
-    moveStep: 1,
+    offsetX: 0.0,
+    offsetY: 0.0,
+    scale: 0.5,
+    moveStep: 1.0,
     scaleStep: 0.01,
   },
 };
