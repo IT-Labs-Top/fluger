@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -319,6 +320,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Fluger API", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # ── HTTP error logging middleware ────────────────────
 
@@ -597,6 +606,93 @@ def health():
         "player": "connected" if player_manager.has_connections else "disconnected",
         "browser": browser_status,
     }
+
+
+@app.get("/api/hall")
+def hall_sensor():
+    """Read Hall sensor pin state for diagnostics."""
+    if not stepper.available:
+        raise HTTPException(503, "Stepper not available (no GPIO)")
+    try:
+        import RPi.GPIO as gpio
+        value = gpio.input(cfg.HALL_PIN)
+        return {"pin": cfg.HALL_PIN, "value": value, "triggered": value == 0}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to read Hall pin: {e}")
+
+
+@app.get("/api/hall-monitor")
+async def hall_monitor(seconds: int = 10, pin: Optional[int] = None):
+    """Monitor Hall sensor pin for N seconds, return min/max/changes."""
+    if not stepper.available:
+        raise HTTPException(503, "Stepper not available (no GPIO)")
+    monitor_pin = pin if pin is not None else cfg.HALL_PIN
+    try:
+        import RPi.GPIO as gpio
+        gpio.setup(monitor_pin, gpio.IN)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to setup pin {monitor_pin}: {e}")
+
+    import RPi.GPIO as gpio
+    readings = []
+    changes = []
+    start = _time.time()
+    prev = None
+    while _time.time() - start < seconds:
+        val = gpio.input(monitor_pin)
+        readings.append(val)
+        if prev is not None and val != prev:
+            changes.append({"time": round(_time.time() - start, 3), "from": prev, "to": val})
+        prev = val
+        await asyncio.sleep(0.02)  # ~50 Hz sampling
+
+    return {
+        "pin": monitor_pin,
+        "duration": seconds,
+        "samples": len(readings),
+        "values": {"low_count": readings.count(0), "high_count": readings.count(1)},
+        "changes": changes,
+        "triggered_ever": 0 in readings,
+    }
+
+
+@app.get("/api/gpio/scan")
+def gpio_scan():
+    """Scan all usable GPIO pins to find Hall sensor."""
+    if not stepper.available:
+        raise HTTPException(503, "Stepper not available (no GPIO)")
+    try:
+        import RPi.GPIO as gpio
+        results = {}
+        # BCM pins commonly available on Raspberry Pi
+        scan_pins = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 23, 24, 25, 26, 27]
+        # Exclude pins we're using for stepper
+        used_pins = {cfg.DIR_PIN, cfg.STEP_PIN, cfg.ENA_PIN}
+        for pin in scan_pins:
+            if pin in used_pins:
+                results[str(pin)] = "used_by_stepper"
+                continue
+            try:
+                gpio.setup(pin, gpio.IN)
+                results[str(pin)] = gpio.input(pin)
+            except Exception as e:
+                results[str(pin)] = f"error: {e}"
+        return {"configured_hall_pin": cfg.HALL_PIN, "pins": results}
+    except Exception as e:
+        raise HTTPException(500, f"GPIO scan failed: {e}")
+
+
+@app.get("/api/logs")
+def get_logs(lines: int = 50):
+    log_file = Path(__file__).parent / cfg.LOG_DIR / "fluger.log"
+    if not log_file.is_file():
+        return {"lines": []}
+    try:
+        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        return {"lines": [l.rstrip() for l in all_lines[-lines:]]}
+    except Exception:
+        return {"lines": []}
 
 
 # ── Static mounts ─────────────────────────────────────
