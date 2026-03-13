@@ -1,8 +1,31 @@
 __pycache__/
 *.pyc
+*.pyo
+
 logs/
 videos/
-
-# Chrome profile (local browser data)
 chrome_profile/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Claude Code
+.claude/
+
+# Vue frontend build (generated)
+frontend/
+
+# OS
+.DS_Store
+Thumbs.db
 nul
