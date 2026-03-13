@@ -85,17 +85,26 @@ class Stepper:
         gpio = self._gpio
         target_step = math.trunc(degrees / self.degstep)
         diff = target_step - self._current_step
+        prev_deg = self.current_degrees
 
         if diff == 0:
-            return {"position": self.current_degrees}
+            return {"position": self.current_degrees, "moved": False, "detail": "already at target"}
 
         direction = self.cw if diff > 0 else self.ccw
+        dir_name = "CW" if direction == self.cw else "CCW"
+        original_diff = diff
         if abs(diff) >= self.spr / 2:
             direction = self.ccw if diff > 0 else self.cw
             diff = self.spr - abs(diff)
+            dir_name = "CW" if direction == self.cw else "CCW"
 
         motor_steps = int(abs(diff) * self.syscof)
+        profile = "short" if 0 < abs(diff) <= cfg.SMALL_DIST_THRESHOLD else "long"
 
+        log.info("Move: %.1f° → %.1f° | diff=%d steps | %s | %d pulses | profile=%s",
+                 prev_deg, degrees, diff, dir_name, motor_steps, profile)
+
+        t0 = time.time()
         if target_step == 0:
             self._return_to_zero()
         else:
@@ -103,8 +112,20 @@ class Stepper:
             time.sleep(0.05)
             self._move(motor_steps, diff)
 
+        elapsed = time.time() - t0
         self._current_step = target_step
-        return {"position": self.current_degrees}
+        log.info("Move complete in %.2fs", elapsed)
+
+        return {
+            "position": self.current_degrees,
+            "moved": True,
+            "from": round(prev_deg, 2),
+            "to": round(self.current_degrees, 2),
+            "direction": dir_name,
+            "motor_steps": motor_steps,
+            "profile": profile,
+            "elapsed": round(elapsed, 2),
+        }
 
     def calibrate(self) -> dict:
         with self._lock:
